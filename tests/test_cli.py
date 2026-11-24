@@ -33,6 +33,43 @@ class ListCommandTest(ShelfTestCase):
             "#2 [reading] Kindred by Octavia E. Butler",
         ])
 
+    def test_status_shows_only_matching_books_in_id_order(self):
+        self.shelf("add", "Kindred", "Octavia E. Butler", "--status", "reading")
+        self.shelf("add", "Dune", "Frank Herbert")
+        self.shelf("add", "Parable of the Sower", "Octavia E. Butler", "--status", "reading")
+
+        result = self.shelf("list", "--status", "reading")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), [
+            "#1 [reading] Kindred by Octavia E. Butler",
+            "#3 [reading] Parable of the Sower by Octavia E. Butler",
+        ])
+
+    def test_status_with_no_matching_books_says_so(self):
+        self.shelf("add", "Dune", "Frank Herbert")
+
+        result = self.shelf("list", "--status", "done")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "No books with status done.\n")
+
+    def test_status_on_an_empty_shelf_says_no_books_match(self):
+        result = self.shelf("list", "--status", "reading")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "No books with status reading.\n")
+
+    def test_an_invalid_status_is_a_usage_error_that_names_the_valid_values(self):
+        result = self.shelf("list", "--status", "bogus")
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        # argparse words this message differently across Python versions,
+        # so check for each valid value rather than the exact text.
+        for status in ("to-read", "reading", "done"):
+            self.assertIn(status, result.stderr)
+
 
 class StartAndFinishCommandTest(ShelfTestCase):
     def test_start_then_finish_a_book(self):
